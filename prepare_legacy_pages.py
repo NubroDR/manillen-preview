@@ -75,21 +75,25 @@ SAFE_STARTUP = """    <script type="module">
         return false;
       }
 
-      try {
-        if (!(await waitForServiceWorkerController())) return;
-        sessionStorage.removeItem("__manillen_shinylive_controller_reload__");
-      } catch (error) {
-        document.body.textContent =
-          "De oude leesbare site kon niet starten. Ververs de pagina of probeer het later opnieuw.";
-        throw error;
+      async function startLegacyApp() {
+        try {
+          if (!(await waitForServiceWorkerController())) return;
+          sessionStorage.removeItem("__manillen_shinylive_controller_reload__");
+        } catch (error) {
+          document.body.textContent =
+            "De oude leesbare site kon niet starten. Ververs de pagina of probeer het later opnieuw.";
+          throw error;
+        }
+
+        const { runExportedApp } = await import("./shinylive/shinylive.js");
+        runExportedApp({
+          id: "root",
+          appEngine: "python",
+          relPath: "",
+        });
       }
 
-      const { runExportedApp } = await import("./shinylive/shinylive.js");
-      runExportedApp({
-        id: "root",
-        appEngine: "python",
-        relPath: "",
-      });
+      startLegacyApp();
     </script>"""
 
 
