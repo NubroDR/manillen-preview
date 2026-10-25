@@ -1,4 +1,4 @@
-"""Make a generated Shinylive export wait for its service worker before startup."""
+"""Make a generated Shinylive export start only after its service worker controls it."""
 
 import argparse
 from pathlib import Path
@@ -31,27 +31,53 @@ SAFE_STARTUP = """    <script type="module">
       }
 
       async function waitForServiceWorkerController() {
-        if (!("serviceWorker" in navigator)) return;
-        await waitWithTimeout(
-          navigator.serviceWorker.ready,
-          "Timed out waiting for the Shinylive service worker.",
-        );
-        if (navigator.serviceWorker.controller) return;
-        await waitWithTimeout(
-          new Promise((resolve) => {
-            navigator.serviceWorker.addEventListener("controllerchange", resolve, {
-              once: true,
-            });
+        if (!("serviceWorker" in navigator)) return true;
+        const serviceWorker = navigator.serviceWorker;
+        if (serviceWorker.controller) return true;
+
+        const registration = await waitWithTimeout(
+          serviceWorker.register(new URL("./shinylive-sw.js", location.href), {
+            type: "module",
           }),
-          "Timed out waiting for the Shinylive service worker controller.",
+          "Timed out registering the Shinylive service worker.",
         );
-        if (!navigator.serviceWorker.controller) {
-          throw new Error("Shinylive service worker controller is unavailable.");
+        const worker =
+          registration.installing || registration.waiting || registration.active;
+        if (!worker) {
+          throw new Error("The Shinylive service worker has no active worker.");
         }
+        if (worker.state !== "activated") {
+          await waitWithTimeout(
+            new Promise((resolve, reject) => {
+              const checkState = () => {
+                if (worker.state === "activated") {
+                  worker.removeEventListener("statechange", checkState);
+                  resolve();
+                } else if (worker.state === "redundant") {
+                  worker.removeEventListener("statechange", checkState);
+                  reject(new Error("The Shinylive service worker was not activated."));
+                }
+              };
+              worker.addEventListener("statechange", checkState);
+              checkState();
+            }),
+            "Timed out activating the Shinylive service worker.",
+          );
+        }
+        if (serviceWorker.controller) return true;
+
+        const reloadKey = "__manillen_shinylive_controller_reload__";
+        if (sessionStorage.getItem(reloadKey)) {
+          throw new Error("The Shinylive service worker did not control the page after reload.");
+        }
+        sessionStorage.setItem(reloadKey, "1");
+        window.location.reload();
+        return false;
       }
 
       try {
-        await waitForServiceWorkerController();
+        if (!(await waitForServiceWorkerController())) return;
+        sessionStorage.removeItem("__manillen_shinylive_controller_reload__");
       } catch (error) {
         document.body.textContent =
           "De oude leesbare site kon niet starten. Ververs de pagina of probeer het later opnieuw.";
