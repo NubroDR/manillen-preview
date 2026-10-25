@@ -15,8 +15,13 @@ const elements = {
   content: document.querySelector("#view-content"),
   navigation: document.querySelector("#primary-navigation"),
   menu: document.querySelector("#navigation-toggle"),
+  themeToggle: document.querySelector("#theme-toggle"),
+  themeIcon: document.querySelector("#theme-icon"),
+  themeLabel: document.querySelector("#theme-label"),
+  themeColor: document.querySelector('meta[name="theme-color"]'),
 };
 
+const themeStorageKey = "manillen-theme";
 let manifest;
 let players = [];
 let pairings = [];
@@ -31,25 +36,32 @@ function element(tag, text, className) {
   return node;
 }
 
-function cell(label, value, className = "") {
-  const node = element("td", value, className);
+function cell(label, value, className = "", icon = "") {
+  const node = element("td", undefined, className);
+  if (icon) {
+    const marker = element("span", icon, "rank-emoji");
+    marker.setAttribute("aria-hidden", "true");
+    node.append(marker);
+  }
+  node.append(document.createTextNode(String(value)));
   node.dataset.label = label;
   return node;
 }
 
-function table(headers, rows, className = "data-table") {
+function table(headers, rows, className = "data-table", rowClasses = [], headerClasses = []) {
   const root = element("table", undefined, className);
   const head = document.createElement("thead");
   const headRow = document.createElement("tr");
-  for (const header of headers) {
-    const item = element("th", header);
+  for (const [index, header] of headers.entries()) {
+    const item = element("th", header, headerClasses[index] || "");
     item.scope = "col";
     headRow.append(item);
   }
   head.append(headRow);
   const body = document.createElement("tbody");
-  for (const values of rows) {
+  for (const [index, values] of rows.entries()) {
     const row = document.createElement("tr");
+    if (rowClasses[index]) row.className = rowClasses[index];
     row.append(...values);
     body.append(row);
   }
@@ -199,6 +211,36 @@ function closeNavigation(returnFocus = false) {
   if (returnFocus) elements.menu.focus();
 }
 
+function setTheme(isDark, persist = false) {
+  const theme = isDark ? "dark" : "light";
+  document.documentElement.dataset.theme = theme;
+  elements.themeToggle.setAttribute("aria-pressed", String(isDark));
+  elements.themeToggle.setAttribute(
+    "aria-label",
+    `Schakel naar ${isDark ? "licht" : "donker"} thema`,
+  );
+  elements.themeIcon.textContent = isDark ? "☀️" : "🌙";
+  elements.themeLabel.textContent = isDark ? "Licht" : "Donker";
+  elements.themeColor.content = isDark ? "#171c19" : "#f4f1ea";
+
+  if (persist) {
+    try {
+      window.localStorage.setItem(themeStorageKey, theme);
+    } catch (error) {
+      console.warn("Thema-voorkeur kon niet worden opgeslagen.", error);
+    }
+  }
+}
+
+function loadTheme() {
+  try {
+    return window.localStorage.getItem(themeStorageKey) === "dark";
+  } catch (error) {
+    console.warn("Thema-voorkeur kon niet worden gelezen.", error);
+    return false;
+  }
+}
+
 function standingsView(data, route, params) {
   const currentSeason = chosenSeason(params);
   const selectedDate = params.get("datum") || "";
@@ -224,19 +266,30 @@ function standingsView(data, route, params) {
     rows = data.playdays.find((day) => day.date === validDate)?.standings || [];
   }
   if (!rows.length) return emptyState("Nog geen scores gevonden.");
+  const medalClasses = ["rank-gold", "rank-silver", "rank-bronze"];
+  const medalEmojis = ["🥇", "🥈", "🥉"];
+  const activeIndices = rows
+    .map((row, index) => (row.gamesPlayed > 0 ? index : -1))
+    .filter((index) => index >= 0);
+  const lastActiveIndex = activeIndices.length ? activeIndices[activeIndices.length - 1] : -1;
   const bodyRows = rows.map((row, index) => [
     cell("#", index + 1, "numeric"),
-    cell("Speler", row.player),
+    cell("Speler", row.player, "", medalEmojis[index] || (index === lastActiveIndex ? "🏮" : "")),
     cell("Gewonnen", row.wins, "numeric"),
     cell("Gespeeld", row.gamesPlayed, "numeric"),
     cell("Voor", row.pointsFor, "numeric"),
     cell("Tegen", row.pointsAgainst, "numeric"),
     cell("Saldo", row.pointDiff, "numeric"),
   ]);
+  const rowClasses = rows.map((_, index) => (
+    medalClasses[index] || (index === lastActiveIndex ? "rank-lantern" : "")
+  ));
   const root = element("div");
   root.append(table(
     ["#", "Speler", "Gewonnen", "Gespeeld", "Voor", "Tegen", "Saldo"],
     bodyRows,
+    "data-table",
+    rowClasses,
   ));
   root.append(element("p", "* = reservespeler.", "reserve-footnote"));
   return root;
@@ -385,18 +438,21 @@ function seasonsView(seasonData) {
         cell("Seizoen", `S${item?.seasonNumber ?? season.seasonNumber}`),
         cell("Label", season.season),
         cell("Pool", item?.poolSize ?? season.poolSize, "numeric"),
-        cell("Goud", season.awards.Gold || "—"),
-        cell("Zilver", season.awards.Silver || "—"),
-        cell("Brons", season.awards.Bronze || "—"),
-        cell("Rode lantaarn", season.awards.RedLantern || "—"),
+        cell("🥇 Goud", season.awards.Gold || "—", "rank-gold"),
+        cell("🥈 Zilver", season.awards.Silver || "—", "rank-silver"),
+        cell("🥉 Brons", season.awards.Bronze || "—", "rank-bronze"),
+        cell("🏮 Rode lantaarn", season.awards.RedLantern || "—", "rank-lantern"),
         cell("Spelers", attendeeCounts.length ? attendeeCounts.join(" / ") : "—"),
         cell("Speeldagen", playdays),
       ];
     });
   if (!rows.length) return emptyState("Nog geen seizoenen gevonden.");
   return table(
-    ["Seizoen", "Label", "Pool", "Goud", "Zilver", "Brons", "Rode lantaarn", "Spelers", "Speeldagen"],
+    ["Seizoen", "Label", "Pool", "🥇 Goud", "🥈 Zilver", "🥉 Brons", "🏮 Rode lantaarn", "Spelers", "Speeldagen"],
     rows,
+    "data-table",
+    [],
+    ["", "", "", "rank-gold", "rank-silver", "rank-bronze", "rank-lantern"],
   );
 }
 
@@ -404,14 +460,17 @@ function hallOfFameView() {
   elements.controls.replaceChildren();
   if (!hallOfFame.length) return emptyState("Nog geen Hall of Fame-resultaten.");
   return table(
-    ["Speler", "Goud", "Zilver", "Brons", "Rode lantaarn"],
+    ["Speler", "🥇 Goud", "🥈 Zilver", "🥉 Brons", "🏮 Rode lantaarn"],
     hallOfFame.map((row) => [
       cell("Speler", row.Player),
-      cell("Goud", row.Gold, "numeric"),
-      cell("Zilver", row.Silver, "numeric"),
-      cell("Brons", row.Bronze, "numeric"),
-      cell("Rode lantaarn", row.RedLantern, "numeric"),
+      cell("🥇 Goud", row.Gold, "numeric rank-gold"),
+      cell("🥈 Zilver", row.Silver, "numeric rank-silver"),
+      cell("🥉 Brons", row.Bronze, "numeric rank-bronze"),
+      cell("🏮 Rode lantaarn", row.RedLantern, "numeric rank-lantern"),
     ]),
+    "data-table",
+    [],
+    ["", "rank-gold", "rank-silver", "rank-bronze", "rank-lantern"],
   );
 }
 
@@ -493,6 +552,11 @@ elements.menu.addEventListener("click", () => {
   const open = elements.navigation.classList.toggle("is-open");
   elements.menu.setAttribute("aria-expanded", String(open));
   elements.menu.setAttribute("aria-label", open ? "Sluit navigatie" : "Open navigatie");
+});
+
+setTheme(loadTheme());
+elements.themeToggle.addEventListener("click", () => {
+  setTheme(document.documentElement.dataset.theme !== "dark", true);
 });
 
 elements.navigation.addEventListener("click", (event) => {

@@ -7,9 +7,9 @@
     <meta name="theme-color" content="#f4f2ed">
     <meta name="description" content="Alleen-lezen overzicht van Manillen-speeldagen, tussenstand en parenhistoriek.">
     <title>Manillen | Speeldagen</title>
-    <link rel="stylesheet" href="./styles.css?v=2be502d8619a5292">
-    <script type="module" src="./service-worker-cleanup.js?v=2be502d8619a5292"></script>
-    <script type="module" src="./app.js?v=2be502d8619a5292"></script>
+    <link rel="stylesheet" href="./styles.css?v=2be502d8619a5292-6ec0fe39aed5">
+    <script type="module" src="./service-worker-cleanup.js?v=2be502d8619a5292-6ec0fe39aed5"></script>
+    <script type="module" src="./app.js?v=2be502d8619a5292-6ec0fe39aed5"></script>
   </head>
   <body>
     <div class="app-shell">
@@ -18,6 +18,10 @@
           <span class="brand-mark" aria-hidden="true">M</span>
           <span>MANILLEN <span class="brand-slash">/</span> OVERZICHT</span>
         </a>
+        <button id="theme-toggle" class="theme-toggle" type="button" aria-pressed="false">
+          <span id="theme-icon" aria-hidden="true">🌙</span>
+          <span id="theme-label">Donkere modus</span>
+        </button>
         <button
           id="navigation-toggle"
           class="menu-toggle"
