@@ -58,31 +58,56 @@ function playerSlug(name) {
     .replace(/^-+|-+$/g, "") || "speler";
 }
 
-function playerLink(name, className = "player-name-link") {
+function profileAction(name, className = "player-profile-action") {
   const display = String(name || "").trim();
   if (!display || /^Reserve\s+\d+$/i.test(display)) {
-    return element("span", display || "—", className || "player-name-link is-placeholder");
+    return element("span", "", className + " is-hidden");
   }
-  const link = element("a", display, className);
+  const link = element("a", "↗", className);
   link.href = `#/speler/${playerSlug(display)}`;
+  link.setAttribute("aria-label", `Open profiel van ${display}`);
   link.title = `Open profiel van ${display}`;
   return link;
 }
 
+function playerLabel(name, className = "player-name-label") {
+  const display = String(name || "").trim();
+  if (!display) return element("span", "—", className + " is-placeholder");
+  const label = element("span", display, className);
+  if (/^Reserve\s+\d+$/i.test(display)) label.classList.add("is-placeholder");
+  return label;
+}
+
+function playerNameWithAction(name, className = "player-name-label") {
+  const display = String(name || "").trim();
+  if (!display) return element("span", "—", className + " is-placeholder");
+  const wrapper = element("span", undefined, "player-name-row");
+  wrapper.append(playerLabel(display, className));
+  const action = profileAction(display);
+  if (!action.classList.contains("is-hidden")) wrapper.append(action);
+  return wrapper;
+}
+
 function playerCell(label, value, className = "", icon = "") {
-  const node = cell(label, "", className, icon);
-  node.replaceChildren(playerLink(value));
+  const node = element("td", undefined, className);
+  node.dataset.label = label;
+  if (icon) {
+    const marker = element("span", icon, "rank-emoji");
+    marker.setAttribute("aria-hidden", "true");
+    node.append(marker);
+  }
+  node.append(playerNameWithAction(value));
   return node;
 }
 
-function teamPlayersDisplay(value, className = "player-name-link") {
+function teamPlayersDisplay(value, className = "player-name-label") {
   const names = String(value || "").split("|").map((part) => part.trim()).filter(Boolean);
-  if (!names.length) return element("span", "—", className || "player-name-link is-placeholder");
+  if (!names.length) return element("span", "—", className + " is-placeholder");
   const wrapper = document.createElement("span");
   wrapper.className = "team-players";
   for (const [index, name] of names.entries()) {
     if (index > 0) wrapper.append(document.createTextNode(" + "));
-    wrapper.append(playerLink(name, className));
+    wrapper.append(playerNameWithAction(name, className));
   }
   return wrapper;
 }
@@ -445,7 +470,7 @@ function playdaysView(data, route, params) {
         names.setAttribute("aria-label", "Spelers aan tafel");
         for (const player of tableData.players) {
           const row = element("li", undefined, "player-result-row");
-          row.append(playerLink(player, "player-result-name"));
+          row.append(playerNameWithAction(player, "player-result-name"));
           names.append(row);
         }
         tableCard.append(names);
@@ -463,7 +488,7 @@ function playdaysView(data, route, params) {
       for (const standing of tableData.standings) {
         const { player, wins, losses } = standing;
         const row = element("li", undefined, "player-result-row");
-        row.append(playerLink(player, "player-result-name"));
+        row.append(playerNameWithAction(player, "player-result-name"));
         const result = element("strong", `${wins}-${losses}`, "player-result-record");
         result.setAttribute("aria-label", `${wins} gewonnen, ${losses} verloren`);
         row.append(result);
