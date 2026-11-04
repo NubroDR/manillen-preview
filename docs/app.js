@@ -78,6 +78,32 @@ function emptyState(message) {
   return element("p", message, "empty-state");
 }
 
+function amsterdamDate(now = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Amsterdam",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now);
+  const dateParts = Object.fromEntries(
+    parts.map(({ type, value }) => [type, value]),
+  );
+  return `${dateParts.year}-${dateParts.month}-${dateParts.day}`;
+}
+
+function playdayHasPassed(playDate, now = new Date()) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(playDate)
+    && playDate < amsterdamDate(now);
+}
+
+let observedAmsterdamDate = amsterdamDate();
+window.setInterval(() => {
+  const currentDate = amsterdamDate();
+  if (currentDate === observedAmsterdamDate) return;
+  observedAmsterdamDate = currentDate;
+  if (routeFromHash().route === "speeldagen") renderRoute();
+}, 30_000);
+
 function setContent(node) {
   elements.content.replaceChildren(node);
   elements.content.setAttribute("aria-busy", "false");
@@ -310,6 +336,7 @@ function playdaysView(data, route, params) {
   if (!data.playdays.length) return emptyState("Nog geen speeldagen gevonden.");
   const fragment = document.createDocumentFragment();
   for (const day of data.playdays) {
+    const showResults = playdayHasPassed(day.date);
     const card = element("section", undefined, "day-card");
     const title = element("h3", day.date);
     if (day.location) {
@@ -320,6 +347,27 @@ function playdaysView(data, route, params) {
       const tableCard = element("section", undefined, "table-card");
       tableCard.append(element("h3", `Tafel ${tableData.table}`));
       const names = element("ul", undefined, "player-list");
+      const hasResults = tableData.standings.some(
+        ({ wins, losses }) => wins + losses > 0,
+      );
+      if (!showResults || !hasResults) {
+        names.setAttribute("aria-label", "Spelers aan tafel");
+        for (const player of tableData.players) {
+          const row = element("li", undefined, "player-result-row");
+          row.append(element("span", player, "player-result-name"));
+          names.append(row);
+        }
+        tableCard.append(names);
+        tableCard.append(emptyState(
+          showResults
+            ? "Nog geen scores voor deze tafel."
+            : day.date === amsterdamDate()
+              ? "W-L-resultaten verschijnen na afloop van vandaag."
+              : "W-L-resultaten verschijnen na afloop van de speeldag.",
+        ));
+        card.append(tableCard);
+        continue;
+      }
       names.setAttribute("aria-label", "W-L-resultaten per speler");
       for (const standing of tableData.standings) {
         const { player, wins, losses } = standing;
