@@ -376,6 +376,31 @@ select:focus-visible {
   margin-right: 6px;
 }
 
+.player-name-link,
+.player-name-link:visited {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.player-name-link:hover,
+.player-name-link:focus-visible {
+  text-decoration: underline;
+}
+
+.player-name-link.is-placeholder {
+  color: var(--muted);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.team-players {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.2em;
+  align-items: center;
+}
+
 .score-winner {
   color: var(--accent);
   font-weight: 750;
@@ -480,6 +505,15 @@ select:focus-visible {
 
 .player-result-name {
   overflow-wrap: anywhere;
+}
+
+.player-profile {
+  display: grid;
+  gap: 18px;
+}
+
+.player-profile-name {
+  margin: 0;
 }
 
 .player-result-record {

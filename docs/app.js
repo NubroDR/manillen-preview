@@ -59,8 +59,13 @@ function playerSlug(name) {
 }
 
 function playerLink(name, className = "player-name-link") {
-  const link = element("a", String(name), className);
-  link.href = `#/speler/${playerSlug(name)}`;
+  const display = String(name || "").trim();
+  if (!display || /^Reserve\s+\d+$/i.test(display)) {
+    return element("span", display || "—", className || "player-name-link is-placeholder");
+  }
+  const link = element("a", display, className);
+  link.href = `#/speler/${playerSlug(display)}`;
+  link.title = `Open profiel van ${display}`;
   return link;
 }
 
@@ -68,6 +73,18 @@ function playerCell(label, value, className = "", icon = "") {
   const node = cell(label, "", className, icon);
   node.replaceChildren(playerLink(value));
   return node;
+}
+
+function teamPlayersDisplay(value, className = "player-name-link") {
+  const names = String(value || "").split("|").map((part) => part.trim()).filter(Boolean);
+  if (!names.length) return element("span", "—", className || "player-name-link is-placeholder");
+  const wrapper = document.createElement("span");
+  wrapper.className = "team-players";
+  for (const [index, name] of names.entries()) {
+    if (index > 0) wrapper.append(document.createTextNode(" + "));
+    wrapper.append(playerLink(name, className));
+  }
+  return wrapper;
 }
 
 function table(headers, rows, className = "data-table", rowClasses = [], headerClasses = []) {
@@ -500,6 +517,10 @@ function scoresTable(data, selectedDate, playerQuery) {
     rows.map((row) => {
       const team1Won = row.validScore && row.team1Score > row.team2Score;
       const team2Won = row.validScore && row.team2Score > row.team1Score;
+      const team1Cell = cell("Team 1", "", !row.validScore ? "" : team1Won ? "score-winner" : "score-loser");
+      team1Cell.replaceChildren(teamPlayersDisplay(row.team1Players, "player-name-link"));
+      const team2Cell = cell("Team 2", "", !row.validScore ? "" : team2Won ? "score-winner" : "score-loser");
+      team2Cell.replaceChildren(teamPlayersDisplay(row.team2Players, "player-name-link"));
       return [
         cell("Datum", row.date),
         cell("Tafel", row.table, "numeric"),
@@ -508,17 +529,9 @@ function scoresTable(data, selectedDate, playerQuery) {
           row.validScore ? row.game : `${row.game} — ongeldig: gelijke score`,
           row.validScore ? "numeric" : "numeric score-invalid",
         ),
-        cell(
-          "Team 1",
-          row.team1Players.replaceAll("|", " + "),
-          !row.validScore ? "" : team1Won ? "score-winner" : "score-loser",
-        ),
+        team1Cell,
         cell("Score", row.team1Score, "numeric"),
-        cell(
-          "Team 2",
-          row.team2Players.replaceAll("|", " + "),
-          !row.validScore ? "" : team2Won ? "score-winner" : "score-loser",
-        ),
+        team2Cell,
         cell("Score", row.team2Score, "numeric"),
       ];
     }),
@@ -547,8 +560,8 @@ function pairingsTable(playerQuery) {
   return table(
     ["Speler 1", "Speler 2", "Samen gespeeld"],
     rows.map((row) => [
-      cell("Speler 1", row.player1),
-      cell("Speler 2", row.player2),
+      playerCell("Speler 1", row.player1),
+      playerCell("Speler 2", row.player2),
       cell("Samen gespeeld", row.count, "numeric"),
     ]),
   );
