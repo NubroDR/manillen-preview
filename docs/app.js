@@ -96,13 +96,62 @@ function playdayHasPassed(playDate, now = new Date()) {
     && playDate < amsterdamDate(now);
 }
 
+function nextAmsterdamMidnight(now = new Date()) {
+  const [year, month, day] = amsterdamDate(now).split("-").map(Number);
+  const nextDate = new Date(Date.UTC(year, month - 1, day + 1));
+  const target = {
+    year: nextDate.getUTCFullYear(),
+    month: nextDate.getUTCMonth() + 1,
+    day: nextDate.getUTCDate(),
+  };
+  const desiredUtc = Date.UTC(target.year, target.month - 1, target.day);
+  let timestamp = desiredUtc;
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Europe/Amsterdam",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(new Date(timestamp));
+    const localParts = Object.fromEntries(
+      parts.map(({ type, value }) => [type, Number(value)]),
+    );
+    const localAsUtc = Date.UTC(
+      localParts.year,
+      localParts.month - 1,
+      localParts.day,
+      localParts.hour,
+      localParts.minute,
+      localParts.second,
+    );
+    const adjustment = desiredUtc - localAsUtc;
+    timestamp += adjustment;
+    if (adjustment === 0) break;
+  }
+  return new Date(timestamp);
+}
+
 let observedAmsterdamDate = amsterdamDate();
-window.setInterval(() => {
-  const currentDate = amsterdamDate();
-  if (currentDate === observedAmsterdamDate) return;
-  observedAmsterdamDate = currentDate;
-  if (routeFromHash().route === "speeldagen") renderRoute();
-}, 30_000);
+function scheduleAmsterdamDateRefresh() {
+  const delay = Math.max(
+    0,
+    nextAmsterdamMidnight().getTime() - Date.now(),
+  );
+  window.setTimeout(() => {
+    const currentDate = amsterdamDate();
+    if (currentDate !== observedAmsterdamDate) {
+      observedAmsterdamDate = currentDate;
+      if (routeFromHash().route === "speeldagen") renderRoute();
+    }
+    scheduleAmsterdamDateRefresh();
+  }, delay);
+}
+scheduleAmsterdamDateRefresh();
 
 function setContent(node) {
   elements.content.replaceChildren(node);
