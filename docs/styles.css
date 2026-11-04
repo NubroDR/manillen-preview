@@ -400,11 +400,12 @@ select:focus-visible {
   justify-content: center;
   min-width: 1.5rem;
   min-height: 1.5rem;
+  padding: 0;
   border-radius: 999px;
   border: 1px solid var(--line);
   background: var(--surface-muted);
   color: var(--accent);
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   font-weight: 700;
   line-height: 1;
   text-decoration: none;
@@ -418,6 +419,11 @@ select:focus-visible {
 
 .player-profile-action.is-hidden {
   display: none;
+}
+
+.player-profile-cell {
+  width: 3.5rem;
+  text-align: center;
 }
 
 .team-players {
@@ -516,12 +522,12 @@ select:focus-visible {
 }
 
 .player-result-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   min-width: 0;
   min-height: 40px;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   padding: 6px 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -530,6 +536,7 @@ select:focus-visible {
 }
 
 .player-result-name {
+  min-width: 0;
   overflow-wrap: anywhere;
 }
 

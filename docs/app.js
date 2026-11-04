@@ -63,7 +63,7 @@ function profileAction(name, className = "player-profile-action") {
   if (!display || /^Reserve\s+\d+$/i.test(display)) {
     return element("span", "", className + " is-hidden");
   }
-  const link = element("a", "↗", className);
+  const link = element("a", "👤", className);
   link.href = `#/speler/${playerSlug(display)}`;
   link.setAttribute("aria-label", `Open profiel van ${display}`);
   link.title = `Open profiel van ${display}`;
@@ -88,6 +88,16 @@ function playerNameWithAction(name, className = "player-name-label") {
   return wrapper;
 }
 
+function profileCell(name, className = "player-profile-cell") {
+  const cellNode = element("td", undefined, className);
+  cellNode.dataset.label = "Profiel";
+  const action = profileAction(name);
+  if (!action.classList.contains("is-hidden")) {
+    cellNode.append(action);
+  }
+  return cellNode;
+}
+
 function playerCell(label, value, className = "", icon = "") {
   const node = element("td", undefined, className);
   node.dataset.label = label;
@@ -96,7 +106,7 @@ function playerCell(label, value, className = "", icon = "") {
     marker.setAttribute("aria-hidden", "true");
     node.append(marker);
   }
-  node.append(playerNameWithAction(value));
+  node.append(playerLabel(value));
   return node;
 }
 
@@ -107,7 +117,7 @@ function teamPlayersDisplay(value, className = "player-name-label") {
   wrapper.className = "team-players";
   for (const [index, name] of names.entries()) {
     if (index > 0) wrapper.append(document.createTextNode(" + "));
-    wrapper.append(playerNameWithAction(name, className));
+    wrapper.append(playerLabel(name, className));
   }
   return wrapper;
 }
@@ -422,6 +432,7 @@ function standingsView(data, route, params) {
   const bodyRows = rows.map((row, index) => [
     cell("#", index + 1, "numeric"),
     playerCell("Speler", row.player, "", medalEmojis[index] || (index === lastActiveIndex ? "🏮" : "")),
+    profileCell(row.player),
     cell("Gewonnen", row.wins, "numeric"),
     cell("Gespeeld", row.gamesPlayed, "numeric"),
     cell("Voor", row.pointsFor, "numeric"),
@@ -433,7 +444,7 @@ function standingsView(data, route, params) {
   ));
   const root = element("div");
   root.append(table(
-    ["#", "Speler", "Gewonnen", "Gespeeld", "Voor", "Tegen", "Saldo"],
+    ["#", "Speler", "Profiel", "Gewonnen", "Gespeeld", "Voor", "Tegen", "Saldo"],
     bodyRows,
     "data-table",
     rowClasses,
@@ -470,7 +481,8 @@ function playdaysView(data, route, params) {
         names.setAttribute("aria-label", "Spelers aan tafel");
         for (const player of tableData.players) {
           const row = element("li", undefined, "player-result-row");
-          row.append(playerNameWithAction(player, "player-result-name"));
+          row.append(playerLabel(player, "player-result-name"));
+          row.append(profileAction(player));
           names.append(row);
         }
         tableCard.append(names);
@@ -488,10 +500,11 @@ function playdaysView(data, route, params) {
       for (const standing of tableData.standings) {
         const { player, wins, losses } = standing;
         const row = element("li", undefined, "player-result-row");
-        row.append(playerNameWithAction(player, "player-result-name"));
+        row.append(playerLabel(player, "player-result-name"));
         const result = element("strong", `${wins}-${losses}`, "player-result-record");
         result.setAttribute("aria-label", `${wins} gewonnen, ${losses} verloren`);
         row.append(result);
+        row.append(profileAction(player));
         names.append(row);
       }
       tableCard.append(names);
