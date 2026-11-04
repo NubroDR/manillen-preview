@@ -679,32 +679,71 @@ function playerProfileView(profile) {
   if (!profile) {
     return emptyState("Speler niet gevonden.");
   }
-  const overview = table(
-    ["Veld", "Waarde"],
-    [
-      [cell("Veld", "Speler"), cell("Waarde", profile.name)],
-      [cell("Veld", "Gespeeld"), cell("Waarde", profile.gamesPlayed, "numeric")],
-      [cell("Veld", "Gewonnen"), cell("Waarde", profile.wins, "numeric")],
-      [cell("Veld", "Verloren"), cell("Waarde", profile.losses, "numeric")],
-      [cell("Veld", "Winstpercentage"), cell("Waarde", profile.winRate == null ? "n.v.t." : `${(profile.winRate * 100).toFixed(1)}%`)],
-      [cell("Veld", "Saldo"), cell("Waarde", profile.pointDiff, "numeric")],
-    ],
-  );
   const wrapper = element("div", undefined, "player-profile");
   const header = element("h3", profile.name, "player-profile-name");
-  wrapper.append(header, overview);
+  const stats = element("dl", undefined, "profile-stats");
+  const values = [
+    ["Gespeeld", profile.gamesPlayed],
+    ["Gewonnen", profile.wins],
+    ["Verloren", profile.losses],
+    ["Winstpercentage", profile.winRate == null ? "n.v.t." : `${(profile.winRate * 100).toFixed(1)}%`],
+    ["Saldo", profile.pointDiff],
+  ];
+  for (const [label, value] of values) {
+    const item = element("div", undefined, "profile-stat");
+    item.append(element("dt", label), element("dd", value));
+    stats.append(item);
+  }
+  wrapper.append(header, stats);
   if (Array.isArray(profile.seasons) && profile.seasons.length) {
     wrapper.append(table(
-      ["Seizoen", "Gespeeld", "Gewonnen", "Verloren", "Saldo"],
+      ["Seizoen", "Gespeeld", "Gewonnen", "Verloren", "Saldo", "Aanwezig"],
       profile.seasons.map((season) => [
         cell("Seizoen", season.season),
         cell("Gespeeld", season.gamesPlayed, "numeric"),
         cell("Gewonnen", season.wins, "numeric"),
         cell("Verloren", season.losses, "numeric"),
         cell("Saldo", season.pointDiff, "numeric"),
+        cell("Aanwezig", season.playdaysAttended || 0, "numeric"),
       ]),
       "data-table",
+      [],
+      ["", "numeric", "numeric", "numeric", "numeric", "numeric"],
     ));
+
+    const attendedSeasons = profile.seasons.filter(
+      (season) => Array.isArray(season.playdays) && season.playdays.length,
+    );
+    if (attendedSeasons.length) {
+      const attendance = element("section", undefined, "profile-attendance");
+      attendance.append(element("h4", "Aanwezigheid per seizoen"));
+      for (const season of attendedSeasons) {
+        const details = element("details", undefined, "profile-attendance-season");
+        details.append(element(
+          "summary",
+          `${season.season} · ${season.playdays.length} ${season.playdays.length === 1 ? "speeldag" : "speeldagen"}`,
+        ));
+        const playdays = element("ul");
+        for (const playday of season.playdays) {
+          const item = element("li");
+          const date = element("time", playday.date);
+          date.dateTime = playday.date;
+          const locations = Array.isArray(playday.locations) && playday.locations.length
+            ? playday.locations.join(", ")
+            : "Locatie onbekend";
+          item.append(date, document.createTextNode(" · "), element("span", locations));
+          playdays.append(item);
+        }
+        details.append(playdays);
+        attendance.append(details);
+      }
+      attendance.append(element(
+        "p",
+        "Persoonlijke aanwezigheid is beschikbaar voor speeldagen met spelersregistratie.",
+        "subtle-note",
+      ));
+      wrapper.append(attendance);
+    }
   }
   return wrapper;
 }
